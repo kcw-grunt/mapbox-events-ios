@@ -94,6 +94,58 @@ describe(@"MMECertPin", ^{
         NSData* publicKey = [sessionWrapper.certPin getPublicKeyDataFromCertificate_legacy_ios:certificate];
         publicKey should_not be_nil;
     });
+
+    it(@"should connect to events.mapbox.com without error", ^{
+        MMENSURLSessionWrapper *sessionWrapper = [MMENSURLSessionWrapper new];
+        NSURLRequest *eventsRequest = [NSURLRequest requestWithURL:[NSURL URLWithString:@"https://events.mapbox.com"]];
+        NSLock *complete = [NSLock new];
+        [complete lock];
+
+        [sessionWrapper processRequest:eventsRequest completionHandler:
+            ^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+            error should be_nil;
+            [complete unlock];
+        }];
+
+        while (!complete.tryLock) { // wait a second to let the request complete
+            [NSRunLoop.mainRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:1]];
+        }
+    });
+
+    it(@"should connect to api.mapbox.com without error", ^{
+        MMENSURLSessionWrapper *sessionWrapper = [MMENSURLSessionWrapper new];
+        NSURLRequest *eventsRequest = [NSURLRequest requestWithURL:[NSURL URLWithString:@"https://api.mapbox.com"]];
+        NSLock *complete = [NSLock new];
+        [complete lock];
+
+        [sessionWrapper processRequest:eventsRequest completionHandler:
+            ^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+            error should be_nil;
+            [complete unlock];
+        }];
+
+        while (!complete.tryLock) { // wait a second to let the request complete
+            [NSRunLoop.mainRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:1]];
+        }
+    });
+
+    it(@"should not connect to example.com without error", ^{
+        MMENSURLSessionWrapper *sessionWrapper = [MMENSURLSessionWrapper new];
+        NSURLRequest *eventsRequest = [NSURLRequest requestWithURL:[NSURL URLWithString:@"https://example.com"]];
+        NSLock *complete = [NSLock new];
+        [complete lock];
+
+        [sessionWrapper processRequest:eventsRequest completionHandler:
+            ^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+            error should be_nil;
+            [complete unlock];
+        }];
+
+        while (!complete.tryLock) { // wait a second to let the request complete
+            [NSRunLoop.mainRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:1]];
+        }
+    });
+
 });
 
 SPEC_END

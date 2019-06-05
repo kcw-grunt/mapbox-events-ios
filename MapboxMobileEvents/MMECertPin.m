@@ -82,7 +82,7 @@
     
     if ([challenge.protectionSpace.authenticationMethod isEqualToString:NSURLAuthenticationMethodServerTrust]) {
         
-        //Domain should be excluded
+        // check to see if the domain is excluded
         for (NSString *excludeSubdomains in _excludeSubdomainsSet) {
             if ([challenge.protectionSpace.host isEqualToString:excludeSubdomains]) {
                 dispatch_async(dispatch_get_main_queue(), ^{
