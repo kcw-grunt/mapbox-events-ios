@@ -1,10 +1,10 @@
 #import "MMEAPIClient.h"
-#import "MMEConstants.h"
+
+#import "MapboxMobileEvents.h"
+
 #import "MMENSURLSessionWrapper.h"
-#import "MMEEvent.h"
 #import "NSData+MMEGZIP.h"
 #import "MMEMetricsManager.h"
-#import "MMEEventsManager.h"
 
 typedef NS_ENUM(NSInteger, MMEErrorCode) {
     MMESessionFailedError,

@@ -1,12 +1,15 @@
 #import <Foundation/Foundation.h>
-#import "MMEEventsConfiguration.h"
-#import "MMEAPIClient.h"
+
+@class MMEAPIClient;
+@class MMEEventsConfiguration;
 
 @protocol MMEConfiguratorDelegate <NSObject>
 
 - (void)configurator:(id)updater didUpdate:(MMEEventsConfiguration *)configuration;
 
 @end
+
+#pragma mark -
 
 @interface MMEConfigurator : NSObject
 

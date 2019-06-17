@@ -6,6 +6,55 @@
 #import "MMEEventLogger.h"
 #import "MMEConstants.h"
 
+#pragma mark - Generate Public Key Hash
+
+static const NSString *kMMEKeychainPublicKeyTag = @"MMEKeychainPublicKeyTag"; // Used to add and find the public key in the Keychain
+
+/* From TruskKit */
+
+#pragma mark Missing ASN1 SPKI Headers
+
+// These are the ASN1 headers for the Subject Public Key Info section of a certificate
+static const unsigned char rsa2048Asn1Header[] = {
+    0x30, 0x82, 0x01, 0x22, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
+    0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x82, 0x01, 0x0f, 0x00
+};
+
+static const unsigned char rsa4096Asn1Header[] = {
+    0x30, 0x82, 0x02, 0x22, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
+    0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x82, 0x02, 0x0f, 0x00
+};
+
+static const unsigned char ecDsaSecp256r1Asn1Header[] = {
+    0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
+    0x01, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03,
+    0x42, 0x00
+};
+
+static const unsigned char ecDsaSecp384r1Asn1Header[] = {
+    0x30, 0x76, 0x30, 0x10, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
+    0x01, 0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22, 0x03, 0x62, 0x00
+};
+
+void ASN1HeaderForPublicKeyAlgorithm(size_t algo, const unsigned char ** headerBytes, size_t * headerSize) {
+    switch (algo) {
+        case 0:
+            *headerBytes = (const unsigned char *)&rsa2048Asn1Header;
+            *headerSize = sizeof(rsa4096Asn1Header);
+        case 1:
+            *headerBytes = (const unsigned char *)&rsa4096Asn1Header;
+            *headerSize = sizeof(rsa4096Asn1Header);
+        case 2:
+            *headerBytes = (const unsigned char *)&ecDsaSecp256r1Asn1Header;
+            *headerSize = sizeof(ecDsaSecp256r1Asn1Header);
+        case 3:
+            *headerBytes = (const unsigned char *)&ecDsaSecp384r1Asn1Header;
+            *headerSize = sizeof(ecDsaSecp384r1Asn1Header);
+    }
+}
+
+#pragma mark -
+
 @interface MMECertPin()
 
 @property (nonatomic) MMEPinningConfigurationProvider *pinningConfigProvider;
@@ -213,15 +262,7 @@
     return subjectPublicKeyInfoHash;
 }
 
-#pragma mark - Generate Public Key Hash
-
-static const NSString *kMMEKeychainPublicKeyTag = @"MMEKeychainPublicKeyTag"; // Used to add and find the public key in the Keychain
-
-// These are the ASN1 headers for the Subject Public Key Info section of a certificate
-static const unsigned char rsa2048Asn1Header[] = {
-    0x30, 0x82, 0x01, 0x22, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
-    0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x82, 0x01, 0x0f, 0x00
-};
+#pragma mark -
 
 - (NSData *)getPublicKeyDataFromCertificate:(SecCertificateRef)certificate{
     // ****** iOS ******

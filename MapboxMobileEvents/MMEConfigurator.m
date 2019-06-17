@@ -1,4 +1,5 @@
 #import "MMEConfigurator.h"
+
 #import "MMEAPIClient.h"
 
 @interface MMEConfigurator ()
@@ -7,6 +8,8 @@
 @property (nonatomic) MMEEventsConfiguration *configuration;
 
 @end
+
+#pragma mark -
 
 @implementation MMEConfigurator
 

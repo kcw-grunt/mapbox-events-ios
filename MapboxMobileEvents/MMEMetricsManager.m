@@ -1,11 +1,13 @@
 #import "MMEMetricsManager.h"
-#import "MMEReachability.h"
-#import "MMEConstants.h"
+
+#import "MapboxMobileEvents.h"
+
+#import "MMEAPIClient.h"
+#import "MMECommonEventData.h"
 #import "MMEDate.h"
 #import "MMEEventLogger.h"
-#import "MMEEventsManager.h"
-#import "MMECommonEventData.h"
-#import "MMEAPIClient.h"
+#import "MMEMetrics.h"
+#import "MMEReachability.h"
 
 #pragma mark -
 
