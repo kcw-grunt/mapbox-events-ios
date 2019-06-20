@@ -1,4 +1,5 @@
 #import <CommonCrypto/CommonDigest.h>
+#import <Security/Security.h>
 
 #import "MMECertPin.h"
 #import "MMEPinningConfigurationProvider.h"
@@ -36,20 +37,22 @@ static const unsigned char ecDsaSecp384r1Asn1Header[] = {
     0x01, 0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22, 0x03, 0x62, 0x00
 };
 
-void ASN1HeaderForPublicKeyAlgorithm(size_t algo, const unsigned char ** headerBytes, size_t * headerSize) {
-    switch (algo) {
-        case 0:
-            *headerBytes = (const unsigned char *)&rsa2048Asn1Header;
-            *headerSize = sizeof(rsa4096Asn1Header);
-        case 1:
-            *headerBytes = (const unsigned char *)&rsa4096Asn1Header;
-            *headerSize = sizeof(rsa4096Asn1Header);
-        case 2:
-            *headerBytes = (const unsigned char *)&ecDsaSecp256r1Asn1Header;
-            *headerSize = sizeof(ecDsaSecp256r1Asn1Header);
-        case 3:
-            *headerBytes = (const unsigned char *)&ecDsaSecp384r1Asn1Header;
-            *headerSize = sizeof(ecDsaSecp384r1Asn1Header);
+void ASN1HeaderForPublicKeyLength(size_t keyLength, unsigned char ** headerBytes, size_t * headerSize) {
+    if (keyLength == 2048) {
+        *headerBytes = (unsigned char *)&rsa2048Asn1Header;
+        *headerSize = sizeof(rsa4096Asn1Header);
+    }
+    else if (keyLength == 4096) {
+        *headerBytes = (unsigned char *)&rsa4096Asn1Header;
+        *headerSize = sizeof(rsa4096Asn1Header);
+    }
+    else if (keyLength == 256) {
+        *headerBytes = (unsigned char *)&ecDsaSecp256r1Asn1Header;
+        *headerSize = sizeof(ecDsaSecp256r1Asn1Header);
+    }
+    else if (keyLength == 384) {
+        *headerBytes = (unsigned char *)&ecDsaSecp384r1Asn1Header;
+        *headerSize = sizeof(ecDsaSecp384r1Asn1Header);
     }
 }
 
@@ -228,43 +231,50 @@ void ASN1HeaderForPublicKeyAlgorithm(size_t algo, const unsigned char ** headerB
         __strong __typeof__(weakSelf) strongSelf = weakSelf;
         cachedSubjectPublicKeyInfo = strongSelf.publicKeyInfoHashesCache[certificateData];
     });
-    
+
     if (cachedSubjectPublicKeyInfo) {
         return cachedSubjectPublicKeyInfo;
     }
-    
+
     // We didn't have this certificate in the cache
     // First extract the public key bytes
     NSData *publicKeyData = [self getPublicKeyDataFromCertificate:certificate];
     if (publicKeyData == nil) {
         return nil;
     }
-    
+
     // Generate a hash of the subject public key info
     NSMutableData *subjectPublicKeyInfoHash = [NSMutableData dataWithLength:CC_SHA256_DIGEST_LENGTH];
     CC_SHA256_CTX shaCtx;
     CC_SHA256_Init(&shaCtx);
-    
-    // Add the missing ASN1 header for public keys to re-create the subject public key info
-    CC_SHA256_Update(&shaCtx, rsa2048Asn1Header, sizeof(rsa2048Asn1Header));
-    
-    // Add the public key
-    CC_SHA256_Update(&shaCtx, [publicKeyData bytes], (unsigned int)[publicKeyData length]);
+
+    // Add the  ASN.1 header for public keys to re-create the subject public key info
+    unsigned char *asn1Header = NULL;
+    size_t asn1HeaderLength = 0;
+    ASN1HeaderForPublicKeyLength(publicKeyData.length, &asn1Header, &asn1HeaderLength);
+    if (asn1HeaderLength > 0) { // if the key size was recognzied
+        CC_SHA256_Update(&shaCtx, asn1Header, (CC_LONG)asn1HeaderLength);
+    }
+    else {
+        return nil;
+    }
+
+    // Add the public key data
+    CC_SHA256_Update(&shaCtx, publicKeyData.bytes, (CC_LONG)publicKeyData.length);
     CC_SHA256_Final((unsigned char *)[subjectPublicKeyInfoHash bytes], &shaCtx);
-    
-    
+
     // Store the hash in our memory cache
     dispatch_barrier_sync(_lockQueue, ^{
         __strong __typeof__(weakSelf) strongSelf = weakSelf;
         strongSelf.publicKeyInfoHashesCache[certificateData] = subjectPublicKeyInfoHash;
     });
-    
+
     return subjectPublicKeyInfoHash;
 }
 
 #pragma mark -
 
-- (NSData *)getPublicKeyDataFromCertificate:(SecCertificateRef)certificate{
+- (NSData *)getPublicKeyDataFromCertificate:(SecCertificateRef)certificate {
     // ****** iOS ******
 #if __IPHONE_OS_VERSION_MAX_ALLOWED < 100000
     // Base SDK is iOS 8 or 9
@@ -273,14 +283,10 @@ void ASN1HeaderForPublicKeyAlgorithm(size_t algo, const unsigned char ** headerB
     // Base SDK is iOS 10+ - try to use the unified Security APIs if available
     NSProcessInfo *processInfo = [NSProcessInfo processInfo];
     if ([processInfo respondsToSelector:@selector(isOperatingSystemAtLeastVersion:)]
-        && [processInfo isOperatingSystemAtLeastVersion:(NSOperatingSystemVersion){10, 0, 0}])
-    {
-        // iOS 10+
+        && [processInfo isOperatingSystemAtLeastVersion:(NSOperatingSystemVersion){10, 0, 0}]) {
         return [self getPublicKeyDataFromCertificate_unified:certificate];
     }
-    else
-    {
-        // iOS 8 or 9
+    else {
         return [self getPublicKeyDataFromCertificate_legacy_ios:certificate];
     }
 #endif
@@ -301,8 +307,7 @@ void ASN1HeaderForPublicKeyAlgorithm(size_t algo, const unsigned char ** headerB
     publicKey = SecTrustCopyPublicKey(tempTrust);
     CFRelease(policy);
     CFRelease(tempTrust);
-    
-    
+
     /// Extract the actual bytes from the key reference using the Keychain
     // Prepare the dictionary to add the key
     NSMutableDictionary *peerPublicKeyAdd = [[NSMutableDictionary alloc] init];
